@@ -1,0 +1,276 @@
+'''
+python期末功課
+B0029009 鄭位浩
+'''
+
+import random, sys, time, pygame
+from pygame.locals import *
+
+每秒更新 = 10 # 螢幕每秒刷新頻率
+螢幕寬 = 640 # 畫面寬度
+螢幕高 = 480 # 畫面長度
+動畫速度 = 500 # 毫秒
+動畫延遲 = 200 # 毫秒
+按鍵大小 = 200
+按鍵間隙 = 20
+時間到 = 4 # 幾秒沒按按鍵遊戲結束
+
+#                R    G    B
+白        = (255, 255, 255)
+黑        = (  0,   0,   0)
+亮紅    = (255,   0,   0)
+紅          = (155,   0,   0)
+亮綠  = (  0, 255,   0)
+綠        = (  0, 155,   0)
+亮藍   = (  0,   0, 255)
+藍         = (  0,   0, 155)
+亮黃 = (255, 255,   0)
+黃       = (155, 155,   0)
+深灰     = ( 40,  40,  40)
+開始遊戲背景 = 黑
+
+X軸邊 = int((螢幕寬 - (2 * 按鍵大小) - 按鍵間隙) / 2)
+Y軸邊 = int((螢幕高 - (2 * 按鍵大小) - 按鍵間隙) / 2)
+
+# 4按鍵對象
+黃色按鍵   = pygame.Rect(X軸邊, Y軸邊, 按鍵大小, 按鍵大小)
+藍色按鍵   = pygame.Rect(X軸邊 + 按鍵大小 + 按鍵間隙, Y軸邊, 按鍵大小, 按鍵大小)
+紅色按鍵   = pygame.Rect(X軸邊, Y軸邊 + 按鍵大小 + 按鍵間隙, 按鍵大小, 按鍵大小)
+綠色按鍵  = pygame.Rect(X軸邊 + 按鍵大小 + 按鍵間隙, Y軸邊 + 按鍵大小 + 按鍵間隙, 按鍵大小, 按鍵大小)
+
+'''主迴圈'''
+
+遊戲初始=pygame.init
+設定遊戲時間=pygame.time.Clock
+設定顯示幕=pygame.display.set_mode
+設定字體=pygame.font.Font
+設定遊戲標題=pygame.display.set_caption
+設定按鍵的聲音=pygame.mixer.Sound
+'''結束主迴圈翻譯'''
+
+
+def 主迴圈():
+    global 主時間, 螢幕顯示, 基礎字體, beep1, beep2, beep3, beep4
+
+    遊戲初始()
+    主時間 = 設定遊戲時間()
+    螢幕顯示 = 設定顯示幕((螢幕寬, 螢幕高))
+    設定遊戲標題('Simulate')
+
+    基礎字體 = 設定字體('freesansbold.ttf', 16)
+    遊戲說明信息 = 基礎字體.render('You can use Q,W,A,S to play!', 1, 深灰)
+    遊戲信息 = 遊戲說明信息.get_rect()
+    遊戲信息.topleft = (10, 螢幕高 - 25)
+
+    # 載入聲音文件
+    beep1 = 設定按鍵的聲音('beep1.ogg')
+    beep2 = 設定按鍵的聲音('beep2.ogg')
+    beep3 = 設定按鍵的聲音('beep3.ogg')
+    beep4 = 設定按鍵的聲音('beep4.ogg')
+
+    # 初始化遊戲
+    顏色模式 = [] # 儲存顏色圖案
+    正確按鍵 = 0 # 下一個要按的顏色
+    最後按下時間 = 0 # 最後按的時間點
+    score = 0
+    # 失敗後，隨意按一個鍵開始重來模式
+    waitingForInput = False
+
+    while True: # 遊戲主循環
+        按下去動作 = None # 按鍵被按了
+        螢幕顯示.fill(開始遊戲背景)
+        按鍵上色()
+
+        分數方塊 = 基礎字體.render('Score: ' + str(score), 1, 白)
+        分數事件 = 分數方塊.get_rect()
+        分數事件.topleft = (螢幕寬 - 100, 10)
+        螢幕顯示.blit(分數方塊, 分數事件)
+
+        螢幕顯示.blit(遊戲說明信息, 遊戲信息)
+
+        檢查結束()
+        for event in pygame.event.get(): # 處理事件循環
+            if event.type == MOUSEBUTTONUP:
+                mousex, mousey = event.pos
+                按下去動作 = 按鍵點擊(mousex, mousey)
+            elif event.type == KEYDOWN:
+                if event.key == K_q:
+                    按下去動作 = 黃
+                elif event.key == K_w:
+                    按下去動作 = 藍
+                elif event.key == K_a:
+                    按下去動作 = 紅
+                elif event.key == K_s:
+                    按下去動作 = 綠
+
+
+
+        if not waitingForInput:
+            # 等待的播放模式
+            pygame.display.update()
+            pygame.time.wait(1000)
+            顏色模式.append(random.choice((黃, 藍, 紅, 綠)))
+            for button in 顏色模式:
+                按鍵動作(button)
+                pygame.time.wait(動畫延遲)
+            waitingForInput = True
+        else:
+            # 等待玩家進入的按鍵
+            if 按下去動作 and 按下去動作 == 顏色模式[正確按鍵]:
+                # 按對
+                按鍵動作(按下去動作)
+                正確按鍵 += 1
+                最後按下時間 = time.time()
+
+                if 正確按鍵 == len(顏色模式):
+                    # 按錯
+                    背景動畫()
+                    score += 1
+                    waitingForInput = False
+                    正確按鍵 = 0 # 回到第一步
+
+            elif (按下去動作 and 按下去動作 != 顏色模式[正確按鍵]) or (正確按鍵 != 0 and time.time() - 時間到 > 最後按下時間):
+                # 按錯或是時間超過
+                結束動畫()
+                # 重來並開啟新局
+                顏色模式 = []
+                正確按鍵 = 0
+                waitingForInput = False
+                score = 0
+                pygame.time.wait(1000)
+                背景動畫()
+
+        pygame.display.update()
+        主時間.tick(每秒更新)
+
+'''終止'''
+放棄程式=pygame.quit
+系統離開=sys.exit
+'''結束終止翻譯'''
+
+def 終止():
+    放棄程式()
+    系統離開()
+
+
+def 檢查結束():
+    for event in pygame.event.get(QUIT): # 所有放棄的事件
+        終止() # 終止在玩家放棄的事件
+    for event in pygame.event.get(KEYUP): # 所有按鍵事件
+        if event.key == K_ESCAPE:
+            終止() # 按下Esc鍵終止
+        pygame.event.post(event) # 按了其他按鍵
+
+
+'''按鍵動作'''
+顏色=color
+'''結束按鍵動作翻譯'''
+
+
+def 按鍵動作(顏色, animationSpeed=50):
+    if 顏色 == 黃:
+        sound = beep1
+        flashcolor = 亮黃
+        rectangle = 黃色按鍵
+    elif 顏色 == 藍:
+        sound = beep2
+        flashcolor = 亮藍
+        rectangle = 藍色按鍵
+    elif 顏色 == 紅:
+        sound = beep3
+        flashcolor = 亮紅
+        rectangle = 紅色按鍵
+    elif 顏色 == 綠:
+        sound = beep4
+        flashcolor = 亮綠
+        rectangle = 綠色按鍵
+
+    origSurf = 螢幕顯示.copy()
+    flashSurf = pygame.Surface((按鍵大小, 按鍵大小))
+    flashSurf = flashSurf.convert_alpha()
+    r, g, b = flashcolor
+    sound.play()
+    for start, end, step in ((0, 255, 1), (255, 0, -1)): # 動畫循環
+        for alpha in range(start, end, animationSpeed * step):
+            檢查結束()
+            螢幕顯示.blit(origSurf, (0, 0))
+            flashSurf.fill((r, g, b, alpha))
+            螢幕顯示.blit(flashSurf, rectangle.topleft)
+            pygame.display.update()
+            主時間.tick(每秒更新)
+    螢幕顯示.blit(origSurf, (0, 0))
+
+
+'''按鍵上色'''
+著色事件=pygame.draw.rect
+'''結束按鍵上色翻譯'''
+	
+def 按鍵上色():
+    著色事件(螢幕顯示, 黃, 黃色按鍵)
+    著色事件(螢幕顯示, 藍,   藍色按鍵)
+    著色事件(螢幕顯示, 紅,    紅色按鍵)
+    著色事件(螢幕顯示, 綠,  綠色按鍵)
+
+
+def 背景動畫(animationSpeed=40):
+    global 開始遊戲背景
+    newBgColor = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+    newBgSurf = pygame.Surface((螢幕寬, 螢幕高))
+    newBgSurf = newBgSurf.convert_alpha()
+    r, g, b = newBgColor
+    for alpha in range(0, 255, animationSpeed): # 動畫循環
+        檢查結束()
+        螢幕顯示.fill(開始遊戲背景)
+
+        newBgSurf.fill((r, g, b, alpha))
+        螢幕顯示.blit(newBgSurf, (0, 0))
+
+        按鍵上色() # 按鍵重新上色
+
+        pygame.display.update()
+        主時間.tick(每秒更新)
+    開始遊戲背景 = newBgColor
+
+
+	
+def 結束動畫(顏色=白, animationSpeed=50):
+    # 播放所有聲音並閃爍背景
+    origSurf = 螢幕顯示.copy()
+    flashSurf = pygame.Surface(螢幕顯示.get_size())
+    flashSurf = flashSurf.convert_alpha()
+    beep1.play() # 同時播放出4個聲音
+    beep2.play()
+    beep3.play()
+    beep4.play()
+    r, g, b = 顏色
+    for i in range(3): # 重複動畫3次
+        for start, end, step in ((0, 255, 1), (255, 0, -1)):
+            # 在這個迴圈下迭代的數字
+            # 前面是0~255後面是255~0
+            for alpha in range(start, end, animationSpeed * step): # 動畫循環
+                檢查結束()
+                flashSurf.fill((r, g, b, alpha))
+                螢幕顯示.blit(origSurf, (0, 0))
+                螢幕顯示.blit(flashSurf, (0, 0))
+                按鍵上色()
+                pygame.display.update()
+                主時間.tick(每秒更新)
+
+
+
+def 按鍵點擊(x, y):
+    if 黃色按鍵.collidepoint( (x, y) ):
+        return 黃
+    elif 藍色按鍵.collidepoint( (x, y) ):
+        return 藍
+    elif 紅色按鍵.collidepoint( (x, y) ):
+        return 紅
+    elif 綠色按鍵.collidepoint( (x, y) ):
+        return 綠
+    return None
+
+
+if __name__ == '__main__':
+    主迴圈()
+
